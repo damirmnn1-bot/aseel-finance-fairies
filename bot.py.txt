@@ -1,0 +1,131 @@
+import os
+import asyncio
+import logging
+
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message, CallbackQuery
+from aiogram.filters import CommandStart
+from aiogram.enums import ParseMode
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.client.default import DefaultBotProperties
+
+logging.basicConfig(level=logging.INFO)
+
+WELCOME_TEXT = (
+"💳 Қаржы қызметтері бойынша CALL-CENTER ботына қош келдіңіз!\n\n"
+"Қажетті бөлімді таңдаңыз да, сұрағыңызды жолдаңыз👇🏻"
+)
+
+PRICES_TEXT = (
+"💳 НЕСИЕ ШАРТТАРЫ\n"
+"Пайыздық мөлшерлеме — 12% бастап\n"
+"Мерзімі — 3 айдан 60 айға дейін\n\n"
+"💰 ДЕПОЗИТ\n"
+"Жылдық сыйақы — 10% дейін\n"
+"Минималды салым — 50 000 тг\n\n"
+"💳 КАРТАЛАР\n"
+"Қызмет көрсету — ТЕГІН\n"
+"Cashback — 5% дейін"
+)
+
+RESPONSIBLES = {
+
+"credit":
+"💳 Несие бойынша сұрақтарыңыз болса, маманға жазыңыз:\n👉 @credit_manager",
+
+"deposit":
+"💰 Депозит бойынша кеңес алу үшін:\n👉 @deposit_manager",
+
+"card":
+"💳 Карта ашу немесе қызметтер бойынша:\n👉 @card_support",
+
+"transfer":
+"🔁 Ақша аудару бойынша көмек:\n👉 @transfer_help",
+
+"support":
+"📞 Жалпы сұрақтар бойынша қолдау қызметі:\n👉 @support_team",
+
+"prices": PRICES_TEXT
+}
+
+
+def main_keyboard():
+
+    kb = InlineKeyboardBuilder()
+
+    kb.button(text="💳 Несие", callback_data="credit")
+    kb.button(text="💰 Депозит", callback_data="deposit")
+
+    kb.button(text="💳 Карта", callback_data="card")
+    kb.button(text="🔁 Аудару", callback_data="transfer")
+
+    kb.button(text="📞 Қолдау", callback_data="support")
+    kb.button(text="📊 Тарифтер", callback_data="prices")
+
+    kb.adjust(2,2,2)
+
+    return kb.as_markup()
+
+
+def back_keyboard():
+
+    kb = InlineKeyboardBuilder()
+
+    kb.button(text="⬅️ Артқа", callback_data="back")
+
+    return kb.as_markup()
+
+
+async def main():
+
+    token = os.getenv("BOT_TOKEN")
+
+    if not token:
+        raise RuntimeError("BOT_TOKEN Railway Variables ішіне қой.")
+
+    bot = Bot(
+        token=token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+
+    dp = Dispatcher()
+
+
+    @dp.message(CommandStart())
+    async def start(message: Message):
+
+        await message.answer(
+            WELCOME_TEXT,
+            reply_markup=main_keyboard()
+        )
+
+
+    @dp.callback_query(F.data == "back")
+    async def back(callback: CallbackQuery):
+
+        await callback.answer()
+
+        await callback.message.edit_text(
+            WELCOME_TEXT,
+            reply_markup=main_keyboard()
+        )
+
+
+    @dp.callback_query(F.data.in_(RESPONSIBLES.keys()))
+    async def handlers(callback: CallbackQuery):
+
+        await callback.answer()
+
+        text = RESPONSIBLES[callback.data]
+
+        await callback.message.edit_text(
+            text,
+            reply_markup=back_keyboard()
+        )
+
+
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
